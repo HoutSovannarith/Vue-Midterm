@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Store</title>
+    <!-- Vue CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <!-- Axios CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</head>
+<body class="bg-gray-100">
+
+<!-- Navbar -->
+<div class="bg-gray-800 text-white p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold">Store</h1>
+    <div>
+        <button @click="changePage('home')" class="px-4 py-2">Home</button>
+        <button @click="changePage('cart')" class="relative px-4 py-2">
+            Cart
+        </button>
+    </div>
+</div>
+
+
+<div id="app" class="container mx-auto p-4">
+    <!-- Home Page -->
+    <div v-if="currentPage === 'home'">
+        <h1 class="text-2xl font-bold mb-4">Products</h1>
+        <div class="grid grid-cols-4 gap-4">
+            <div v-for="product in products" :key="product.id" class="bg-white p-4 shadow">
+                <img :src="product.image" class="h-40 w-full object-cover mb-4">
+                <h2 class="text-lg font-semibold">{{ product.title }}</h2>
+                <p class="text-gray-600">{{ product.price | currency }}</p>
+                <button @click="viewProduct(product.id)" class="bg-blue-600 text-white px-4 py-2 mt-2">View Details
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Detail Page -->
+    <div v-if="currentPage === 'productDetail'">
+        <button @click="changePage('home')" class="bg-gray-200 px-4 py-2 mb-4">Back</button>
+        <div class="bg-white p-4 shadow">
+            <img :src="currentProduct.image" class="h-60 w-full object-cover mb-4">
+            <h2 class="text-2xl font-bold">{{ currentProduct.title }}</h2>
+            <p class="text-gray-600">{{ currentProduct.price | currency }}</p>
+            <p class="text-gray-800 mt-4">{{ currentProduct.description }}</p>
+            <div class="mt-4">
+                <label class="text-gray-600">Quantity:</label>
+                <input v-model.number="selectedQty" type="number" min="1" class="border p-2 ml-2 w-16">
+            </div>
+            <button @click="addToCart(currentProduct, selectedQty)" class="bg-blue-600 text-white px-4 py-2 mt-4">Add to
+                Cart
+            </button>
+        </div>
+    </div>
+
+    <!-- Cart Page -->
+    <div v-if="currentPage === 'cart'">
+        <button @click="changePage('home')" class="bg-gray-200 px-4 py-2 mb-4">Back to Products</button>
+        <h1 class="text-2xl font-bold mb-4">Cart</h1>
+        <div v-if="cart.length === 0" class="text-gray-600">Your cart is empty</div>
+        <div v-else>
+            <div v-for="item in cart" :key="item.id" class="bg-white p-4 shadow mb-4 flex items-center">
+                <img :src="item.image" class="h-20 w-20 object-cover mr-4">
+                <div class="flex-1">
+                    <h2 class="text-lg font-semibold">{{ item.title }}</h2>
+                    <p class="text-gray-600">{{ item.price | currency }} x {{ item.qty }}</p>
+                    <div class="mt-2">
+                        <label class="text-sm text-gray-600">Qty:</label>
+                        <input v-model.number="item.qty" type="number" min="1" class="border p-2 ml-2 w-16">
+                    </div>
+                </div>
+                <button @click="removeFromCart(item.id)" class="bg-red-600 text-white px-4 py-2 ml-4">Remove</button>
+            </div>
+            <div class="text-right font-bold text-xl">
+                Total: {{ cartTotalPrice | currency }}
+            </div>
+            <button @click="checkout" class="bg-green-600 text-white px-4 py-2 mt-4 w-full">Checkout</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            currentPage: 'home',
+            products: [],
+            currentProduct: {},
+            cart: [],
+            selectedQty: 1, // Quantity selected by the user
+            telegramBotToken: '6614671087:AAHec9EpRjzTIfpuITTwAReIYvndQgmZtyI',
+            telegramChatId: '@ss20notification'
+        },
+        computed: {
+            cartTotalItems() {
+                const totalItems = this.cart.reduce((total, item) => total + item.qty, 0);
+                console.log('Total items in cart:', totalItems); // Log the total items
+                return totalItems;
+            },
+            cartTotalPrice() {
+                return this.cart.reduce((total, item) => total + (item.price * item.qty), 0).toFixed(2);
+            }
+        },
+        methods: {
+            changePage(page) {
+                console.log('changePage method called');
+                this.currentPage = page;
+            },
+            fetchProducts() {
+                console.log('fetchProducts method called');
+                axios.get('https://fakestoreapi.com/products')
+                    .then(response => {
+                        this.products = response.data;
+                    });
+            },
+            viewProduct(id) {
+                this.currentProduct = this.products.find(product => product.id === id);
+                this.selectedQty = 1; // Reset selected quantity to 1 when viewing a product
+                this.changePage('productDetail');
+            },
+            addToCart(product, qty) {
+                let item = this.cart.find(item => item.id === product.id);
+                if (item) {
+                    item.qty += qty; // Increase quantity if the product is already in the cart
+                } else {
+                    this.cart.push({...product, qty: qty}); // Add new product with selected quantity
+                }
+                console.log('Cart after adding product:', this.cart); // Log the state of the cart
+
+                // Navigate to the cart page after adding the product
+                this.changePage('cart');
+            },
+            removeFromCart(productId) {
+                this.cart = this.cart.filter(item => item.id !== productId);
+                console.log('Cart after removing product:', this.cart); // Log the state of the cart
+            },
+            checkout() {
+                let message = `🛒 *Checkout Complete!*\n\n*Items Purchased:*\n`;
+
+                this.cart.forEach(item => {
+                    message += `- ${item.title} (x${item.qty}): $${(item.price * item.qty).toFixed(2)}\n`;
+                });
+
+                message += `\n*Total Amount:* $${this.cartTotalPrice}`;
+
+                // Send notification to Telegram
+                this.sendTelegramNotification(message);
+
+                alert('Checkout complete! Notification sent to Telegram.');
+                this.cart = [];
+                this.changePage('home');
+            },
+            sendTelegramNotification(message) {
+                const url = `https://api.telegram.org/bot${this.telegramBotToken}/sendMessage`;
+                const data = {
+                    chat_id: this.telegramChatId,
+                    text: message,
+                    parse_mode: 'Markdown'
+                };
+
+                axios.post(url, data)
+                    .then(response => {
+                        console.log('Notification sent to Telegram:', response.data);
+                    })
+                    .catch(error => {
+                        console.error('Error sending notification to Telegram:', error);
+                    });
+            }
+        },
+        filters: {
+            currency(value) {
+                if (typeof value !== 'number') {
+                    value = parseFloat(value); // Convert to number if it's a string
+                }
+                if (isNaN(value)) {
+                    return '$0.00'; // Fallback in case the value can't be converted to a number
+                }
+                return '$' + value.toFixed(2);
+            }
+        },
+        created() {
+            console.log('created lifecycle hook called');
+            this.fetchProducts();
+        }
+    });
+
+
+</script>
+
+</body>
+</html>
